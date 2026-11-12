@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlayerBar - El Widget Lofi definitivo para OBS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+
+        :root {
+            --primary: #00ffff;
+            --primary-dark: #00b3b3;
+            --bg: #050810;
+            --panel: rgba(15, 23, 42, 0.7);
+            --border: rgba(0, 255, 255, 0.2);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg);
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Fondo animado de rejilla */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.1;
+            z-index: -1;
+            animation: moveGrid 10s linear infinite;
+        }
+
+        @keyframes moveGrid {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(40px); }
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            padding: 60px 20px;
+            z-index: 1;
+            text-align: center;
+        }
+
+        /* Encabezado */
+        .header-badge {
+            display: inline-block;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 800;
+            margin: 0 0 20px 0;
+            background: linear-gradient(135deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+
+        p.subtitle {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-bottom: 50px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        /* Sección de Copiar Enlace */
+        .copy-section {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 40px;
+            backdrop-filter: blur(10px);
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,255,0.05);
+        }
+
+        .copy-section input {
+            flex-grow: 1;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 18px;
+            border-radius: 12px;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            outline: none;
+            width: 100%;
+        }
+
+        .copy-btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .copy-btn:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+        }
+
+        /* Vista previa del Widget */
+        .preview-section {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background: #020617;
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            padding: 40px;
+            margin-bottom: 60px;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        .preview-section::before {
+            content: 'VISTA PREVIA EN OBS';
+            position: absolute;
+            top: 20px;
+            left: 25px;
+            font-size: 11px;
+            color: #64748b;
+            letter-spacing: 3px;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* El widget de la vista previa */
+        .demo-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 15px 20px;
+            width: 380px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9), 0 0 20px rgba(0,255,255,0.1);
+        }
+
+        .demo-disc {
+            width: 50px; height: 50px;
+            background: conic-gradient(#111, #333, #111, #333, #111);
+            border-radius: 50%;
+            margin-right: 18px;
+            position: relative;
+            animation: spin 4s linear infinite;
+            box-shadow: 0 0 10px rgba(0,255,255,0.3);
+        }
+
+        .demo-disc::after {
+            content: '🐋';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            background: #3b82f6;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #fff;
+        }
+        
+        .demo-info { text-align: left; flex-grow: 1; }
+        .demo-title { font-size: 15px; font-weight: 700; margin: 0 0 4px 0; color: #fff; }
+        .demo-artist { font-size: 12px; color: var(--primary); margin: 0; font-weight: 600; }
+        
+        .demo-progress { width: 100%; height: 4px; background: rgba(255,255,255,0.15); margin-top: 10px; border-radius: 2px; }
+        .demo-progress-fill { width: 45%; height: 100%; background: var(--primary); border-radius: 2px; box-shadow: 0 0 8px var(--primary); }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Pasos de instalación */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 60px;
+            text-align: left;
+        }
+
+        .step-card {
+            background: var(--panel);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 16px;
+            transition: 0.2s;
+        }
+
+        .step-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .step-number {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 30px;
+            height: 30px;
+            background: rgba(0,255,255,0.1);
+            color: var(--primary);
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .step-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .step-card p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        /* Botones de Enlaces */
+        .links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .link-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 15px;
+        }
+
+        .link-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 60px;
+            font-size: 0.9rem;
+            color: #64748b;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 30px;
+            width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .footer a { color: var(--primary); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+
+    <div class="container">
+        <div class="header-badge">PlayerBar • Open Source</div>
+        <h1>PlayerBar</h1>
+        <p class="subtitle">La barra de música Lofi definitiva para tus streams. Sin complicaciones, sin anuncios y con estilo. Conectada a YouTube y lista para OBS.</p>
+
+        <!-- Caja de Copiar Enlace -->
+        <div class="copy-section">
+            <input type="text" id="widget-url" value="https://playerbar.on-html.duckdns.org/widget.html" readonly>
+            <button class="copy-btn" onclick="copyLink()">Copiar Link</button>
+        </div>
+
+        <!-- Vista Previa en VIVO -->
+        <div class="preview-section">
+            <div class="demo-bar">
+                <div class="demo-disc"></div>
+                <div class="demo-info">
+                    <p class="demo-title">Tea House (Lofi Hip Hop)</p>
+                    <p class="demo-artist">Mondo Loops</p>
+                    <div class="demo-progress"><div class="demo-progress-fill"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pasos de Instalación -->
+        <div class="steps">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3>Copia el enlace</h3>
+                <p>Haz clic en "Copiar Link" para obtener la URL del widget.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3>OBS > Fuente de Navegador</h3>
+                <p>En OBS, añade una nueva fuente de "Navegador" y pega la URL.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3>Haz clic para activar</h3>
+                <p>Haz clic derecho en la fuente, "Interactuar" y haz un clic. ¡Listo!</p>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="links">
+            <a href="https://github.com/anyelo888ra-ux/playerbar" target="_blank" class="link-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                GitHub (Open Source)
+            </a>
+            <a href="https://playerbar.on-html.duckdns.org/widget.html" target="_blank" class="link-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Probar Widget
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>Hecho con 🐋 por el <a href="https://github.com/anyelo888ra-ux" target="_blank">NEXUS HQ</a>. PlayerBar es 100% Open Source.</p>
+        </div>
+    </div>
+
+    <script>
+        function copyLink() {
+            const urlInput = document.getElementById('widget-url');
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.innerText;
+                btn.innerText = '¡Copiado!';
+                btn.style.background = '#fff';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.background = '#00ffff';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

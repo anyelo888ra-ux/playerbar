@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>PlayerBar - Widget para OBS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        /* FONDO TRANSPARENTE PARA OBS */
+        html, body {
+            background-color: transparent !important;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .music-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.85); 
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 12px 18px;
+            width: 360px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0,255,255,0.15);
+            position: relative;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
+            opacity: 0; 
+            transform: translateX(50px);
+            cursor: pointer;
+        }
+
+        .music-bar.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .disc-container {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 15px;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+            flex-shrink: 0;
+        }
+
+        .disc {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(#111, #333, #111, #333, #111);
+            animation: spin 4s linear infinite;
+            position: relative;
+        }
+
+        .disc-center {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #3b82f6; 
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: white;
+            border: 2px solid #fff;
+            z-index: 2;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .info {
+            flex-grow: 1;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .song-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #fff;
+        }
+
+        .artist-name {
+            font-size: 11px;
+            color: #00ffff;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+            border-radius: 2px;
+            transition: width 0.1s linear;
+        }
+
+        .play-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            color: #fff;
+            font-weight: bold;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 10;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .play-overlay.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="music-bar" id="music-bar">
+        <div class="disc-container">
+            <div class="disc" id="disc"></div>
+            <div class="disc-center">🐋</div>
+        </div>
+
+        <div class="info">
+            <h1 class="song-title" id="song-title">Cargando...</h1>
+            <p class="artist-name" id="artist-name">Lofi Hip Hop</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="play-overlay" id="play-overlay">Haz clic para activar el audio</div>
+    </div>
+
+    <div id="youtube-player" style="position: absolute; top: -9999px; left: -9999px;"></div>
+
+    <script>
+        // ==========================================
+        // ID DE LA PLAYLIST DE YOUTUBE
+        // ==========================================
+        // ⚠️ REEMPLAZA ESTO CON EL ID COMPLETO DE TU PLAYLIST
+        const PLAYLIST_ID = "PLHD44KRu8Ods"; // <-- ¡AQUÍ VA EL ID REAL!
+
+        const musicBar = document.getElementById('music-bar');
+        const titleEl = document.getElementById('song-title');
+        const artistEl = document.getElementById('artist-name');
+        const progressBar = document.getElementById('progress-bar');
+        const playOverlay = document.getElementById('play-overlay');
+
+        let player;
+        let isPlayerReady = false;
+        let hideTimeout;
+
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '1',
+                width: '1',
+                host: 'https://www.youtube-nocookie.com',
+                playerVars: {
+                    'listType': 'playlist',
+                    'list': PLAYLIST_ID,
+                    'autoplay': 0,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'enablejsapi': 1,
+                    'origin': window.location.origin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            isPlayerReady = true;
+            console.log("PlayerBar listo (No-Cookie).");
+            updateSongInfo();
+            event.target.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                playOverlay.classList.remove('show');
+                showWidget();
+                updateSongInfo();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                showWidget();
+                setTimeout(updateSongInfo, 1000);
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error("Error de YouTube:", event.data);
+            titleEl.innerText = "Error de reproducción";
+            artistEl.innerText = "Revisa la consola";
+            playOverlay.innerText = "Error. Haz clic para reintentar.";
+            playOverlay.classList.add('show');
+        }
+
+        function updateSongInfo() {
+            if (!isPlayerReady || !player.getVideoData) return;
+            const data = player.getVideoData();
+            if (data && data.title) {
+                titleEl.innerText = data.title;
+                artistEl.innerText = data.author || "YouTube";
+            }
+        }
+
+        setInterval(() => {
+            if (isPlayerReady && player.getCurrentTime && player.getDuration) {
+                const current = player.getCurrentTime();
+                const duration = player.getDuration();
+                if (duration > 0) {
+                    const percent = (current / duration) * 100;
+                    progressBar.style.width = `${percent}%`;
+                }
+                updateSongInfo();
+            }
+        }, 1000);
+
+        function showWidget() {
+            musicBar.classList.add('visible');
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                musicBar.classList.remove('visible');
+            }, 8000); 
+        }
+
+        setTimeout(showWidget, 2000);
+
+        document.body.addEventListener('click', () => {
+            if (player && isPlayerReady) {
+                player.playVideo();
+                playOverlay.classList.remove('show');
+            }
+        });
+
+        setTimeout(() => {
+            if (player && isPlayerReady && player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                playOverlay.classList.add('show');
+            }
+        }, 3000);
+
+        musicBar.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimeout);
+            musicBar.classList.add('visible');
+        });
+        musicBar.addEventListener('mouseleave', () => {
+            hideTimeout = setTimeout(() => {
+                musicBar.classList.remove('visible');
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
