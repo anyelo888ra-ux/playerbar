@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="banner.svg" alt="PlayerBar Banner" width="100%">
+</div>
+
 # 🎧 PlayerBar
 
 **La barra de música Lofi definitiva para tus streams en OBS.**
